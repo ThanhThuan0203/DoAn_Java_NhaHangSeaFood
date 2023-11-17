@@ -1,0 +1,161 @@
+package hutech.nguyenthanhthuan.Admin.controller;
+
+import hutech.nguyenthanhthuan.Library.dto.ProductDto;
+import hutech.nguyenthanhthuan.Library.model.Category;
+import hutech.nguyenthanhthuan.Library.model.Product;
+import hutech.nguyenthanhthuan.Library.service.CategoryService;
+import hutech.nguyenthanhthuan.Library.service.ProductService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.security.Principal;
+import java.util.List;
+
+@Controller
+@RequiredArgsConstructor
+public class ProductController {
+    private final ProductService productService;
+
+    private final CategoryService categoryService;
+
+
+    @GetMapping("/products")
+    public String products(Model model, Principal principal) {
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        List<ProductDto> products = productService.allProduct();
+        model.addAttribute("products", products);
+        model.addAttribute("size", products.size());
+        return "products";
+    }
+
+    @GetMapping("/products/{pageNo}")
+    public String allProducts(@PathVariable("pageNo") int pageNo, Model model, Principal principal) {
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        Page<ProductDto> products = productService.getAllProducts(pageNo);
+        model.addAttribute("title", "Sản Phẩm");
+        model.addAttribute("size", products.getSize());
+        model.addAttribute("products", products);
+        model.addAttribute("currentPage", pageNo);
+        model.addAttribute("totalPages", products.getTotalPages());
+        return "products";
+    }
+
+    @GetMapping("/search-products/{pageNo}")
+    public String searchProduct(@PathVariable("pageNo") int pageNo,
+                                @RequestParam(value = "keyword") String keyword,
+                                Model model, Principal principal
+    ) {
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        Page<ProductDto> products = productService.searchProducts(pageNo, keyword);
+        model.addAttribute("title", "Kết quả Tìm kiếm Sản phẩm");
+        model.addAttribute("size", products.getSize());
+        model.addAttribute("products", products);
+        model.addAttribute("currentPage", pageNo);
+        model.addAttribute("totalPages", products.getTotalPages());
+        return "product-result";
+
+    }
+
+    @GetMapping("/add-product")
+    public String addProductPage(Model model, Principal principal) {
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        model.addAttribute("title", "Thêm sản phẩm");
+        List<Category> categories = categoryService.findAllByActivatedTrue();
+        model.addAttribute("categories", categories);
+        model.addAttribute("productDto", new ProductDto());
+        return "add-product";
+    }
+
+    @PostMapping("/save-product")
+    public String saveProduct(@ModelAttribute("productDto") ProductDto product,
+                              @RequestParam("imageProduct") MultipartFile imageProduct,
+                              RedirectAttributes redirectAttributes, Principal principal) {
+        try {
+            if (principal == null) {
+                return "redirect:/login";
+            }
+            productService.save(imageProduct, product);
+            redirectAttributes.addFlashAttribute("success", "Thêm sản phẩm mới thành công!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error", "Không thể thêm sản phẩm mới!");
+        }
+        return "redirect:/products/0";
+    }
+
+    @GetMapping("/update-product/{id}")
+    public String updateProductForm(@PathVariable("id") Long id, Model model, Principal principal) {
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        List<Category> categories = categoryService.findAllByActivatedTrue();
+        ProductDto productDto = productService.getById(id);
+        model.addAttribute("title", "Thêm sản phẩm");
+        model.addAttribute("categories", categories);
+        model.addAttribute("productDto", productDto);
+        return "update-product";
+    }
+
+    @PostMapping("/update-product/{id}")
+    public String updateProduct(@ModelAttribute("productDto") ProductDto productDto,
+                                @RequestParam("imageProduct") MultipartFile imageProduct,
+                                RedirectAttributes redirectAttributes, Principal principal) {
+        try {
+            if (principal == null) {
+                return "redirect:/login";
+            }
+            productService.update(imageProduct, productDto);
+            redirectAttributes.addFlashAttribute("success", "Cập nhật thành công!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error", "Máy chủ bị lỗi, vui lòng thử lại!");
+        }
+        return "redirect:/products/0";
+    }
+
+    @RequestMapping(value = "/enable-product", method = {RequestMethod.PUT, RequestMethod.GET})
+    public String enabledProduct(Long id, RedirectAttributes redirectAttributes, Principal principal) {
+        try {
+            if (principal == null) {
+                return "redirect:/login";
+            }
+            productService.enableById(id);
+            redirectAttributes.addFlashAttribute("success", "Đã kích hoạt thành công!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error", "Kích hoạt không thành công!");
+        }
+        return "redirect:/products/0";
+    }
+
+    @RequestMapping(value = "/delete-product", method = {RequestMethod.PUT, RequestMethod.GET})
+    public String deletedProduct(Long id, RedirectAttributes redirectAttributes, Principal principal) {
+        try {
+            if (principal == null) {
+                return "redirect:/login";
+            }
+            productService.deleteById(id);
+            redirectAttributes.addFlashAttribute("success", "Đã xoá thành công!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error", "Xóa không thành công!");
+        }
+        return "redirect:/products/0";
+    }
+}
